@@ -882,9 +882,24 @@ function saveScore(name, sc, pct, grade, gradeKey) {
   localStorage.setItem('kaon_scores', JSON.stringify(scores));
 }
 function clearScores() {
-  if (confirm('모든 스코어 기록을 삭제할까요?')) {
-    localStorage.removeItem('kaon_scores');
-    renderScoreboard();
+  const scores = getScores();
+  const hasHidden = scores.some(s => s.hidden);
+  const allHidden = scores.length > 0 && scores.every(s => s.hidden);
+
+  if (allHidden) {
+    // 전부 숨김 상태 → 복원 여부 확인
+    if (confirm('숨겨진 기록을 모두 복원할까요?')) {
+      scores.forEach(s => s.hidden = false);
+      localStorage.setItem('kaon_scores', JSON.stringify(scores));
+      renderScoreboard();
+    }
+  } else {
+    // 보이는 기록 있음 → 숨기기
+    if (confirm('기록을 숨길까요?\n(데이터는 보존되며 언제든 복원할 수 있습니다)')) {
+      scores.forEach(s => s.hidden = true);
+      localStorage.setItem('kaon_scores', JSON.stringify(scores));
+      renderScoreboard();
+    }
   }
 }
 
@@ -906,11 +921,30 @@ function showScoreboard() {
 function renderScoreboard() {
   let scores = getScores();
 
+  // 숨겨진 항목 제외 (기본)
+  const allScores = scores;
+  scores = scores.filter(s => !s.hidden);
+
   if (sbFilter === 'today') {
     const today = new Date().toDateString();
     scores = scores.filter(s => new Date(s.date).toDateString() === today);
   } else if (sbFilter === 'top') {
     scores = scores.slice(0, 10);
+  }
+
+  // 버튼 라벨 업데이트
+  const hiddenCount = allScores.filter(s => s.hidden).length;
+  const clearBtn = document.querySelector('.btn-clear-scores');
+  if (clearBtn) {
+    if (hiddenCount > 0 && allScores.every(s => s.hidden)) {
+      clearBtn.textContent = `숨겨진 기록 복원 (${hiddenCount}건)`;
+      clearBtn.style.color = 'rgba(255,107,0,0.7)';
+      clearBtn.style.borderColor = 'rgba(255,107,0,0.3)';
+    } else {
+      clearBtn.textContent = hiddenCount > 0 ? `기록 숨기기 (숨김 ${hiddenCount}건 포함)` : '기록 숨기기';
+      clearBtn.style.color = '';
+      clearBtn.style.borderColor = '';
+    }
   }
 
   const list = document.getElementById('sb-list');
